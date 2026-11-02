@@ -28,6 +28,12 @@ class AuditContext:
     project_dir: Path | None = None
     cache: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    # Set when the audit runs against a vault (a repo owning a real toolchain).
+    vault: object | None = None
+    # Capabilities declared by the vault's conformance run. An explicit False
+    # means "this environment cannot answer that question", which a check must
+    # report rather than interpret as a negative result.
+    capabilities: dict = field(default_factory=dict)
 
     @property
     def theorems(self):
@@ -41,11 +47,12 @@ REGISTRY: list[tuple[str, str]] = [
     ("dependence", "mutation testing: which hypotheses the proof actually uses"),
     ("minimize", "minimal failing fragment when the build fails"),
     ("claim", "formal statement vs. the claim the client supplied"),
+    ("vault", "environment provenance: does this run match the vault it claims?"),
 ]
 
 
 def load_checks():
-    from . import build, claim, dependence, minimize, statements, trust
+    from . import build, claim, dependence, minimize, statements, trust, vaultcheck
 
     return {
         "build": build.run,
@@ -54,6 +61,7 @@ def load_checks():
         "dependence": dependence.run,
         "minimize": minimize.run,
         "claim": claim.run,
+        "vault": vaultcheck.run,
     }
 
 

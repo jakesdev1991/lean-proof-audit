@@ -136,6 +136,15 @@ class Simulator:
             if re.search(r"\bsorry\b", body):
                 self.warning(line, "declaration uses 'sorry'")
             conclusion = " ".join((decl.type_text(self.text) or "").split())
+            # `rfl` proves only reflexive equalities; a false numeric equality must fail.
+            numeric = re.match(r"^\(?\s*(\d+)\s*\)?\s*=+\s*\(?\s*(\d+)\s*\)?$", conclusion.replace(" : Nat", ""))
+            if numeric and numeric.group(1) != numeric.group(2) and "rfl" in body:
+                self.error(
+                    line,
+                    "type mismatch\n  rfl\nhas type\n  ?a = ?a\nbut is expected to have type\n  "
+                    + conclusion,
+                )
+                continue
             if conclusion.endswith("True") and not any(a in body for a in AUTOMATION):
                 self.error(
                     line,

@@ -71,6 +71,26 @@ def run(ctx: AuditContext) -> CheckResult:
     findings.extend(_auto_implicit_findings(ctx))
 
     refutable, refute_evidence = _refutable_hypotheses(ctx, profiles)
+    if getattr(ctx, "capabilities", {}).get("decide_refutation") is False:
+        findings.append(
+            Finding(
+                check="statements",
+                code="refutation_probe_unavailable",
+                severity=Severity.MEDIUM,
+                category=Category.REPRODUCIBILITY,
+                confidence=Confidence.PROVEN,
+                title="Vacuity could not be tested: this toolchain has no working `decide`",
+                detail=(
+                    "The auditor detects vacuous theorems by asking Lean to refute closed "
+                    "hypotheses with `decide`. That probe is unavailable in this environment, so "
+                    "`refutable_hypothesis` findings are missing by construction rather than "
+                    "because none exist. This is an unverified area of the statement surface, not "
+                    "a clean result. Re-run against a vault whose conformance run passes "
+                    "`decide_refutation`."
+                ),
+                remediation="Run `lean-audit conform` against the vault and fix the `decide_refutation` probe.",
+            )
+        )
     data_profiles: dict[str, dict] = {}
 
     for decl in decls:

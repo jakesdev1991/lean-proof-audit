@@ -16,11 +16,14 @@ from pathlib import Path
 
 from . import SCHEMA_VERSION, __version__, expr, stmtparse
 from .checks import REGISTRY, AuditContext, run_all
+from .conformance_probe import render_text as render_conformance
+from .conformance_probe import run_conformance
 from .config import Config
 from .lean import LeanRunner, ToolchainMissing, discover, doctor
 from .model import Verdict, now_ms
 from .report import build_report, render_markdown, sha256_text, to_json
 from .source import index_source
+from .vault import VaultError, load_conformance, load_vault
 
 EXIT_CODES = {
     Verdict.PASS: 0,
@@ -43,6 +46,8 @@ def main(argv: list[str] | None = None) -> int:
         "selfcheck": cmd_selfcheck,
         "checks": cmd_checks,
         "init-claim": cmd_init_claim,
+        "conform": cmd_conform,
+        "vault": cmd_vault,
     }[args.command](args)
 
 
@@ -57,6 +62,7 @@ def _build_parser() -> argparse.ArgumentParser:
     audit = sub.add_parser("audit", help="audit one Lean file")
     audit.add_argument("target", help="path to the .lean file under audit")
     audit.add_argument("--project", help="Lake project root (enables `lake env lean` and Mathlib imports)")
+    audit.add_argument("--vault", help="directory containing vault.manifest.json; supplies the toolchain, project, and provenance")
     audit.add_argument("--json", dest="json_out", help="write the JSON report here ('-' for stdout)")
     audit.add_argument("--markdown", dest="markdown_out", help="write a human-readable report here")
     audit.add_argument("--claim", dest="claim", help="JSON file describing the intended claim")
@@ -79,6 +85,21 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("checks", help="list the available checks")
 
+    conform = sub.add_parser(
+        "conform",
+        help="bootstrap the auditor/vault handshake: does this toolchain emit the output shapes the audit parses?",
+    )
+    conform.add_argument("--vault", help="vault directory (reads project root from its manifest)")
+    conform.add_argument("--project", help="Lake project root, if not using a manifest")
+    conform.add_argument("--lean", help="path to the `lean` executable")
+    conform.add_argument("--timeout", type=float, default=180.0)
+    conform.add_argument("--json", dest="json_out", help="write the conformance result here ('-' for stdout)")
+    conform.add_argument("--write-manifest", metavar="DIR", help="also write a starter vault.manifest.json into DIR")
+
+    vault = sub.add_parser("vault", help="show a vault's identity, capabilities, and corpus inventory")
+    vault.add_argument("directory", help="vault directory")
+    vault.add_argument("--json", dest="json_out", help="write the summary here ('-' for stdout)")
+
     claim = sub.add_parser("init-claim", help="generate a claim template from a declaration's elaborated statement")
     claim.add_argument("target")
     claim.add_argument("--declaration", help="declaration name (default: the first theorem)")
@@ -97,7 +118,19 @@ def cmd_audit(args) -> int:
     if target.suffix != ".lean":
         print(f"lean-audit: warning: {target.name} does not end in .lean", file=sys.stderr)
 
-    project = Path(args.project).expanduser().resolve() if args.project else _guess_project(target)
+    vault = None
+    if getattr(args, "vault", None):
+        try:
+            vault = load_vault(args.vault)
+        except VaultError as exc:
+            print(f"lean-audit: {exc}", file=sys.stderr)
+            return 3
+
+    project = Path(args.project).expanduser().resolve() if args.project else None
+    if vault is not None and project is None:
+        project = vault.project_dir
+    if project is None:
+        project = _guess_project(target)
     source = target.read_text(encoding="utf-8")
     index = index_source(str(target), source)
 
@@ -123,6 +156,14 @@ def cmd_audit(args) -> int:
         return 3
 
     runner = LeanRunner(toolchain, str(workdir), project_dir=str(project) if project else None, timeout=config.timeout)
+    capabilities: dict = {}
+    if vault is not None:
+        conformance = load_conformance(vault)
+        if conformance is not None:
+            capabilities = dict(conformance.get("capabilities") or {})
+        declared = (vault.raw.get("capabilities") or {})
+        for key, value in declared.items():
+            capabilities.setdefault(key, bool(value))
     ctx = AuditContext(
         target=target,
         source=source,
@@ -131,16 +172,22 @@ def cmd_audit(args) -> int:
         runner=runner,
         config=config,
         project_dir=project,
+        vault=vault,
+        capabilities=capabilities,
     )
     results = run_all(ctx)
 
     if args.strict:
         results = [_strictify(r) for r in results]
 
+    toolchain_info = toolchain.to_dict()
+    if vault is not None:
+        toolchain_info["vault"] = vault.identity()
+        toolchain_info["capabilities"] = capabilities
     report = build_report(
         target=str(target),
         results=results,
-        toolchain=toolchain.to_dict(),
+        toolchain=toolchain_info,
         config=config.to_dict(),
         notes=ctx.notes,
         runner_stats={"lean_runs": runner.run_count, "lean_time_ms": runner.total_duration_ms},
@@ -296,6 +343,99 @@ def cmd_doctor(args) -> int:
     return 0 if info.get("lean_path") else 3
 
 
+def cmd_conform(args) -> int:
+    project = args.project
+    if args.vault and not project:
+        try:
+            project = str(load_vault(args.vault).project_dir)
+        except VaultError as exc:
+            print(f"lean-audit: {exc}", file=sys.stderr)
+            return 3
+    result = run_conformance(project, args.lean, args.timeout)
+
+    if args.json_out == "-":
+        print(json.dumps(result, indent=2))
+    elif args.json_out:
+        Path(args.json_out).expanduser().write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if args.json_out != "-":
+        print(render_conformance(result))
+
+    if args.write_manifest:
+        from .vault import CONTRACT_VERSION
+
+        lean = result.get("lean") or {}
+        manifest = {
+            "contract_version": CONTRACT_VERSION,
+            "name": Path(args.write_manifest).resolve().name,
+            "repo": "<vault repo url>",
+            "commit": "<git rev-parse HEAD>",
+            "generated_at": result.get("generated_at"),
+            "lean": {"path": lean.get("path"), "version": lean.get("version")},
+            "project": {"root": ".", "build_command": "lake build", "has_mathlib": False, "packages": []},
+            "corpus": [],
+            "capabilities": result.get("capabilities") or {},
+            "conformance": "conformance.json",
+        }
+        out = Path(args.write_manifest).expanduser() / "vault.manifest.json"
+        out.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        print(f"\nlean-audit: wrote starter manifest {out} — fill in repo, commit, and corpus.", file=sys.stderr)
+
+    if (result.get("lean") or {}).get("path") is None:
+        return 2
+    return 0 if result.get("compatible") else 1
+
+
+def cmd_vault(args) -> int:
+    try:
+        vault = load_vault(args.directory)
+    except VaultError as exc:
+        print(f"lean-audit: {exc}", file=sys.stderr)
+        return 3
+    conformance = load_conformance(vault)
+    summary = {
+        "vault": vault.identity(),
+        "project": {"root": str(vault.project_dir), "build_command": vault.build_command, "has_mathlib": vault.has_mathlib},
+        "capabilities": (conformance or {}).get("capabilities") or vault.raw.get("capabilities") or {},
+        "conformance": {
+            "published": conformance is not None,
+            "compatible": (conformance or {}).get("compatible"),
+            "required_failed": ((conformance or {}).get("summary") or {}).get("required_failed", []),
+        },
+        "corpus": [
+            {"id": e.id, "path": e.path, "claim": e.claim, "expect": e.expect}
+            for e in vault.corpus
+        ],
+    }
+    if args.json_out == "-":
+        print(json.dumps(summary, indent=2))
+        return 0
+    if args.json_out:
+        Path(args.json_out).expanduser().write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+
+    print(f"vault:       {vault.name}")
+    print(f"repo:        {vault.repo or '(not recorded)'}")
+    print(f"commit:      {vault.commit or '(not recorded)'}")
+    print(f"contract:    {vault.contract_version}")
+    print(f"lean:        {vault.lean_version or '(unknown)'}")
+    print(f"project:     {vault.project_dir}")
+    print(f"mathlib:     {'declared' if vault.has_mathlib else 'not declared'}")
+    conf = summary["conformance"]
+    if conf["published"]:
+        state = "COMPATIBLE" if conf["compatible"] else f"INCOMPATIBLE ({', '.join(conf['required_failed'])})"
+        print(f"conformance: {state}")
+    else:
+        print("conformance: no conformance.json published — capabilities are unverified")
+    caps = summary["capabilities"]
+    if caps:
+        print("capabilities:")
+        for key in sorted(caps):
+            print(f"  {'yes' if caps[key] else 'no ':<4} {key}")
+    print(f"corpus:      {len(vault.corpus)} file(s)")
+    for entry in vault.corpus[:40]:
+        print(f"  {entry.id:<32} {entry.path}")
+    return 0
+
+
 def cmd_checks(args) -> int:
     print(f"lean-audit {__version__} — checks\n")
     for name, desc in REGISTRY:
@@ -321,7 +461,19 @@ def cmd_init_claim(args) -> int:
     else:
         decl = theorems[min(args.pick, len(theorems) - 1)]
 
-    project = Path(args.project).expanduser().resolve() if args.project else _guess_project(target)
+    vault = None
+    if getattr(args, "vault", None):
+        try:
+            vault = load_vault(args.vault)
+        except VaultError as exc:
+            print(f"lean-audit: {exc}", file=sys.stderr)
+            return 3
+
+    project = Path(args.project).expanduser().resolve() if args.project else None
+    if vault is not None and project is None:
+        project = vault.project_dir
+    if project is None:
+        project = _guess_project(target)
     try:
         toolchain = discover(str(project) if project else None)
     except ToolchainMissing as exc:

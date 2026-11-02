@@ -11,9 +11,34 @@ them separate, because a green build collapses all of them into one:
 | Does the proof use what the statement advertises? | `dependence` | warn, with Lean-backed confirmation |
 | When it fails, what is the smallest failure? | `minimize` | — |
 | Is the formal statement the claim that was meant? | `claim` | fail on dropped hypotheses |
+| Is this the environment the verdict claims? | `vault` | fail on a Lean version mismatch |
 
 Full methodology, including an explicit list of what this audit does *not*
 establish: [`docs/AUDIT.md`](docs/AUDIT.md).
+
+## Using a vault (a repo that owns a real toolchain)
+
+A *vault* is any repository that pins a Lean 4 toolchain, a built Lake project,
+and a corpus. The interface is versioned and machine-validated — see
+[`../contract/CONTRACT.md`](../contract/CONTRACT.md).
+
+```bash
+lean-audit conform --vault ../audit-vault                 # does this toolchain
+                                                          # emit the shapes the
+                                                          # audit parses?
+lean-audit vault ../audit-vault                           # identity + corpus inventory
+lean-audit audit ../audit-vault/Corpus/X.lean --vault ../audit-vault
+```
+
+The conformance run is not a formality: its `capabilities` map decides what the
+audit may claim. With `decide_refutation: false`, the statements check emits
+`refutation_probe_unavailable` — "vacuity was not tested" — instead of implying
+it found no vacuous theorems. A capability the environment lacks is a gap in the
+report, never a silent pass.
+
+Reports produced through a vault carry its name, repo, commit, and declared Lean
+version under `environment.vault`, and a `vault_lean_version_mismatch` finding if
+the Lean that actually ran disagrees with the manifest.
 
 ## Install
 
@@ -70,8 +95,9 @@ check can only confirm the statement matches itself.
 ## Verify the auditor
 
 ```bash
-make test        # unit + end-to-end suite (no Lean required)
-make selfcheck   # audit the corpus and check it catches what it should (needs Lean)
+make test              # unit + end-to-end suite (no Lean required)
+make selfcheck         # audit the corpus and check it catches what it should (needs Lean)
+make publish-contract  # republish contract/vault_conformance.py after editing probes
 ```
 
 The corpus in `corpus/` contains planted defects — a `sorry`, a custom axiom, a
@@ -90,10 +116,13 @@ lean_audit/
   lean.py         the only module that talks to Lean; every run is evidence
   model.py        findings, severities, evidence
   report.py       verdict aggregation, JSON + Markdown rendering
-  checks/         build, trust, statements, dependence, minimize, claim
+  conformance_probe.py  the vault handshake probes (copied to contract/, verbatim)
+  vault.py        vault manifest loading and validation
+  checks/         build, trust, statements, dependence, minimize, claim, vault
 schema/           JSON Schema for the report
 docs/AUDIT.md     what each check establishes, and what it does not
 docs/example-report/  a rendered report, with a note on how it was produced
 corpus/           planted defects and their expectations
-tests/            unit tests, end-to-end tests, simulated toolchain
+tests/            unit tests, end-to-end tests, simulated toolchain, vault fixture
+../contract/      the auditor/vault interface: docs, schemas, published probe script
 ```

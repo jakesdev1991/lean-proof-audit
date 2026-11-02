@@ -1,0 +1,47 @@
+{
+  "contract_version": "lean-audit-vault/1",
+  "name": "audit-vault",
+  "repo": "https://github.com/jakesdev1991/audit-vault",
+  "commit": "0000000000000000000000000000000000000000",
+  "generated_at": "2026-11-02T07:10:02.968916+00:00",
+  "lean": {
+    "path": "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+    "version": "Lean (version 4.999.0, fake-toolchain-for-tests, Release)"
+  },
+  "project": {
+    "root": ".",
+    "build_command": "lake build",
+    "has_mathlib": false,
+    "packages": []
+  },
+  "corpus": [
+    {
+      "id": "clean",
+      "path": "../corpus/clean.lean",
+      "expect": "pass"
+    },
+    {
+      "id": "hole",
+      "path": "../corpus/hole.lean",
+      "expect": "fail"
+    },
+    {
+      "id": "vacuous",
+      "path": "../corpus/vacuous.lean",
+      "expect": "fail"
+    }
+  ],
+  "capabilities": {
+    "toolchain": true,
+    "axiom_query": true,
+    "sorry_warning": true,
+    "diagnostics": true,
+    "olean_out": true,
+    "pp_all": true,
+    "decide_refutation": true,
+    "lake_env": false,
+    "mathlib": true
+  },
+  "conformance": "conformance.json",
+  "_note": "Test fixture. Records the SIMULATED toolchain from tests/fakelean. Not evidence about real Lean."
+}
