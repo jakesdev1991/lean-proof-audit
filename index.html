@@ -269,12 +269,14 @@
     <div class="verdict" aria-label="Example of the verdict format an audit returns">
       <div class="verdict-head">
         <span>audit report — format example</span>
-        <span>lean_check · lean_axioms · lean_verify_claim</span>
+        <span>lean_check · lean_axioms · lean_proof_dependence · lean_verify_claim</span>
       </div>
       <pre><span class="dim"># file: your_proof.lean</span>
 <span class="ok">✓ lean_check</span>        compiles — kernel accepts every proof term
 <span class="bad">✗ lean_axioms</span>       depends on <span class="warn">sorryAx</span> via lemma at line 148
 <span class="dim">                     → proof is incomplete, whatever the checkmark says</span>
+<span class="warn">! lean_proof_dependence</span> hypothesis <span class="mono">h : n &gt; 5</span> is never used — the proof
+<span class="dim">                     re-checks without it</span>
 <span class="ok">✓ lean_verify_claim</span> formal statement matches the stated claim</pre>
       <div class="verdict-cap">Illustrative format. Your report carries the actual errors, lines, and axiom traces from your code.</div>
     </div>
@@ -288,8 +290,8 @@
     <div class="wrap">
       <div class="sec-head">
         <p class="sec-label">01 — What you get</p>
-        <h2>Five checks. One verdict.</h2>
-        <p>Every audit runs the same five tools against your code. Each one returns evidence — an error, a line number, an axiom trace — not a score.</p>
+        <h2>Six checks. One verdict.</h2>
+        <p>Every audit runs the same six tools against your code. Each one returns evidence — an error, a line number, an axiom trace — not a score.</p>
       </div>
 
       <div class="tool">
@@ -300,6 +302,11 @@
       <div class="tool">
         <h3>lean_axioms<span class="tag">axiom dependency audit</span></h3>
         <p><strong>What is the proof standing on?</strong> Every axiom your theorems transitively depend on is listed. This is the check that catches a hidden <strong>sorryAx</strong> — a <span class="mono">sorry</span> buried three lemmas deep still makes the headline theorem unproven, and this tool surfaces it.</p>
+      </div>
+
+      <div class="tool">
+        <h3>lean_proof_dependence<span class="tag">mutation-tested</span></h3>
+        <p><strong>Does the proof actually use the hypotheses your statement advertises?</strong> Each hypothesis is deleted from the statement — proof untouched — and Lean is asked to re-check it. If it still compiles, the proof never depended on that hypothesis. Reported as measured dependence, with the mutated statement attached, never as a guess.</p>
       </div>
 
       <div class="tool">
@@ -334,8 +341,8 @@
         </div>
         <div class="step">
           <span class="n">step 2</span>
-          <h3>The five checks run</h3>
-          <p>Kernel check, axiom audit, and the adversarial statement-level pass run against your actual code — not a sample of it.</p>
+          <h3>The six checks run</h3>
+          <p>Kernel check, axiom audit, the adversarial statement-level pass, and mutation testing run against your actual code — not a sample of it.</p>
         </div>
         <div class="step">
           <span class="n">step 3</span>
@@ -409,8 +416,8 @@
           <p><strong>Issues the adversarial audit found</strong> in that corpus that kernel soundness alone missed — statement-level problems in proofs that compiled clean.</p>
         </div>
         <div class="fact">
-          <div class="num">5</div>
-          <p><strong>Tools in every audit.</strong> Check, axioms, corpus, failure diagnosis, and claim verification — the same pipeline, run the same way, every time.</p>
+          <div class="num">6</div>
+          <p><strong>Tools in every audit.</strong> Check, axioms, proof dependence, corpus, failure diagnosis, and claim verification — the same pipeline, run the same way, every time.</p>
         </div>
       </div>
 

@@ -1,0 +1,6 @@
+{
+  "verdict": "fail",
+  "must_flag": ["trivial_conclusion", "inert_hypothesis", "goal_agnostic_proof"],
+  "must_not_flag": ["build_error", "depends_on_sorry"],
+  "why": "Compiles, axiom-clean, and asserts nothing. Only statement-level analysis plus mutation testing can see this."
+}

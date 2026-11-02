@@ -1,0 +1,7 @@
+{
+  "verdict": "fail",
+  "claim": true,
+  "must_flag": ["claim_hypothesis_dropped"],
+  "must_not_flag": [],
+  "why": "The formal statement omits a hypothesis the claim requires, making the formal theorem stronger than intended. This is the failure a kernel can never catch."
+}

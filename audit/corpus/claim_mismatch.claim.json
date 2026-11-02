@@ -1,0 +1,7 @@
+{
+  "declaration": "parity",
+  "prose": "Every positive natural number is either positive or zero, and every even natural number is either positive or zero.",
+  "quantifiers": [{ "name": "n", "type": "Nat" }],
+  "hypotheses": ["n > 0", "Even n"],
+  "conclusion": "n > 0 ∨ n = 0"
+}

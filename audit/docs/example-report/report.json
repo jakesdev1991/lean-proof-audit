@@ -1,0 +1,456 @@
+{
+  "schema": "lean-audit/2",
+  "auditor": {
+    "name": "lean-audit",
+    "version": "2.0.0"
+  },
+  "generated_at": "2026-11-02T06:42:51.580766+00:00",
+  "target": {
+    "path": "/home/user/lean-proof-audit/audit/corpus/vacuous.lean",
+    "sha256": "1da8d11f71a4df355baee3ecfa36581eb6f59475a9d1545996545220b27bea44"
+  },
+  "environment": {
+    "lean": "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+    "version": "Lean (version 4.999.0, fake-toolchain-for-tests, Release)",
+    "lake": null,
+    "is_lake_project": false
+  },
+  "config": {
+    "timeout_seconds": 300.0,
+    "allowed_axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "allow_compiler_trust": false,
+    "max_mutants": 40,
+    "mutant_timeout_seconds": 120.0,
+    "checks": "all",
+    "strict": false
+  },
+  "verdict": {
+    "overall": "fail",
+    "reason": "FAIL: 1 statement-level defect(s)",
+    "sound": true,
+    "statements_honest": false,
+    "dependence_checked": true,
+    "incomplete_checks": [],
+    "counts": {
+      "critical": 0,
+      "high": 1,
+      "medium": 3,
+      "low": 0,
+      "info": 0
+    }
+  },
+  "checks": [
+    {
+      "name": "build",
+      "verdict": "pass",
+      "summary": "compiles clean",
+      "duration_ms": 38,
+      "findings": [],
+      "data": {
+        "exit_code": 0,
+        "error_count": 0,
+        "environment_error_count": 0,
+        "warning_count": 0,
+        "command": [
+          "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+          "-o",
+          "/tmp/lean-audit-vz1_ofh1/audit-out.olean",
+          "/home/user/lean-proof-audit/audit/corpus/vacuous.lean"
+        ],
+        "duration_ms": 37
+      }
+    },
+    {
+      "name": "trust",
+      "verdict": "pass",
+      "summary": "1 theorem(s) depend only on standard axioms",
+      "duration_ms": 38,
+      "findings": [],
+      "data": {
+        "axioms_by_declaration": {
+          "vacuous": []
+        },
+        "probe_commands": [
+          "#print axioms vacuous"
+        ],
+        "probe_duration_ms": 37,
+        "allowed_axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    {
+      "name": "statements",
+      "verdict": "fail",
+      "summary": "statement-level defects found that a kernel pass cannot see",
+      "duration_ms": 75,
+      "findings": [
+        {
+          "check": "statements",
+          "code": "decorative_hypothesis",
+          "severity": "medium",
+          "category": "statement",
+          "confidence": "heuristic",
+          "title": "`vacuous` has a hypothesis nothing else mentions: `h`",
+          "detail": "`h : n > 5` mentions no identifier that appears in the conclusion or in any other hypothesis. Either the statement assumes something it never uses (which overstates what it claims to need), or the conclusion is weaker than intended. The `dependence` check tests this directly by deleting the hypothesis and re-running the proof.",
+          "declaration": "vacuous",
+          "location": {
+            "file": "/home/user/lean-proof-audit/audit/corpus/vacuous.lean",
+            "start": {
+              "line": 11,
+              "col": 1
+            },
+            "end": {
+              "line": 11,
+              "col": 1
+            }
+          },
+          "remediation": "Remove the hypothesis if it is unused, or strengthen the conclusion.",
+          "evidence": [
+            {
+              "kind": "statement",
+              "summary": "hypothesis variables: ['n']; variables elsewhere: []; intersection: empty"
+            }
+          ]
+        },
+        {
+          "check": "statements",
+          "code": "trivial_conclusion",
+          "severity": "high",
+          "category": "statement",
+          "confidence": "proven",
+          "title": "`vacuous` concludes `True`",
+          "detail": "The conclusion is `True`, so the theorem is true no matter what the hypotheses say. Be aware that its axioms can still be kernel-clean: this is not a soundness failure, it is a statement failure.",
+          "declaration": "vacuous",
+          "location": {
+            "file": "/home/user/lean-proof-audit/audit/corpus/vacuous.lean",
+            "start": {
+              "line": 11,
+              "col": 1
+            },
+            "end": {
+              "line": 11,
+              "col": 1
+            }
+          },
+          "evidence": [
+            {
+              "kind": "statement",
+              "summary": "⊢ True"
+            }
+          ]
+        }
+      ],
+      "data": {
+        "statements": {
+          "vacuous": {
+            "fingerprint": "sha256:49da7ece4860f999e6609a87649ef562528704a068167fd2c473b928f3e88879",
+            "binders": [
+              {
+                "name": "n",
+                "kind": "explicit",
+                "type": "Nat"
+              },
+              {
+                "name": "h",
+                "kind": "explicit",
+                "type": "n > 5"
+              }
+            ],
+            "conclusion": "True",
+            "conclusion_locals": [],
+            "telescope": [
+              "(n : Nat)",
+              "(h : n > 5)",
+              "⊢ True"
+            ],
+            "parse_ok": true,
+            "parse_notes": []
+          }
+        },
+        "probe_input_sha256": "b28003b129a76da64620a8027488d9a42d8c14fa7e4e64abaf460bccd879ea1e"
+      }
+    },
+    {
+      "name": "dependence",
+      "verdict": "warn",
+      "summary": "1 killed / 2 survived of 3 mutants",
+      "duration_ms": 114,
+      "findings": [
+        {
+          "check": "dependence",
+          "code": "inert_hypothesis",
+          "severity": "medium",
+          "category": "dependence",
+          "confidence": "heuristic_confirmed",
+          "title": "`vacuous` does not use its hypothesis `h`",
+          "detail": "The hypothesis was deleted from the statement, the proof was left untouched, and Lean still accepted the declaration. The proof term therefore does not depend on it. The theorem remains true, but it is weaker than it looks: a reader will assume that hypothesis is doing work. Either drop it, or the conclusion is meant to be stronger.",
+          "declaration": "vacuous",
+          "remediation": "Remove the unused hypothesis, or strengthen the conclusion so the hypothesis is needed.",
+          "evidence": [
+            {
+              "kind": "lean_run",
+              "summary": "drop_hypothesis -> survived: compiled unchanged with the mutated statement",
+              "command": [
+                "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+                "/tmp/lean-audit-vz1_ofh1/Mutant_41195433.lean"
+              ],
+              "exit_code": 0,
+              "exit_status": "ok",
+              "duration_ms": 38,
+              "stdout": "",
+              "stderr": "",
+              "input_sha256": "075fdc61ae4f4fc9cf4405a0cbc7593c00ec9a700a56c8c806e108835c0911ab",
+              "input": "/-\n  Two independent statement-level defects, neither of which the kernel can see:\n\n    * the conclusion is `True`, so the theorem asserts nothing;\n    * the hypothesis `n > 5` is never used by the proof.\n\n  It compiles, it is axiom-clean, and it means nothing.\n-/\nset_option autoImplicit false\n\ntheorem vacuous (n : Nat)  : True := trivial\n"
+            }
+          ]
+        },
+        {
+          "check": "dependence",
+          "code": "goal_agnostic_proof",
+          "severity": "medium",
+          "category": "dependence",
+          "confidence": "heuristic_confirmed",
+          "title": "`vacuous` compiles even when its conclusion is replaced by `True`",
+          "detail": "The proof closes the goal regardless of what the goal is, which is what automation-driven proofs (`simp`, `trivial`, `decide`-style) do. This does not make the theorem false. It does mean that for this declaration the proof carries no information about the conclusion, so the statement is doing all the work and deserves the closest reading.",
+          "declaration": "vacuous",
+          "evidence": [
+            {
+              "kind": "lean_run",
+              "summary": "conclusion_true -> survived: compiled unchanged with the mutated statement",
+              "command": [
+                "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+                "/tmp/lean-audit-vz1_ofh1/Mutant_65141623.lean"
+              ],
+              "exit_code": 0,
+              "exit_status": "ok",
+              "duration_ms": 37,
+              "stdout": "",
+              "stderr": "",
+              "input_sha256": "8fe1cfb207d711eadd01e46233386dfd9c1ca0a4331265abb4f98105cac1bba2",
+              "input": "/-\n  Two independent statement-level defects, neither of which the kernel can see:\n\n    * the conclusion is `True`, so the theorem asserts nothing;\n    * the hypothesis `n > 5` is never used by the proof.\n\n  It compiles, it is axiom-clean, and it means nothing.\n-/\nset_option autoImplicit false\n\ntheorem vacuous (n : Nat) (h : n > 5) : True:= trivial\n"
+            }
+          ]
+        }
+      ],
+      "data": {
+        "dependence": {
+          "vacuous": {
+            "hypotheses": {
+              "n": {
+                "drop_hypothesis": "killed",
+                "meaning": "the proof depends on this hypothesis"
+              },
+              "h": {
+                "drop_hypothesis": "survived",
+                "meaning": "the proof does not depend on this hypothesis"
+              }
+            },
+            "conclusion_sensitivity": "agnostic",
+            "evidence_strength": "weak"
+          }
+        },
+        "mutants": [
+          {
+            "declaration": "vacuous",
+            "kind": "drop_hypothesis",
+            "target": "n",
+            "status": "killed",
+            "detail": "unknown identifier 'n'",
+            "mutated_type": "(h : n > 5) : True"
+          },
+          {
+            "declaration": "vacuous",
+            "kind": "drop_hypothesis",
+            "target": "h",
+            "status": "survived",
+            "detail": "compiled unchanged with the mutated statement",
+            "mutated_type": "(n : Nat) : True"
+          },
+          {
+            "declaration": "vacuous",
+            "kind": "conclusion_true",
+            "target": "conclusion",
+            "status": "survived",
+            "detail": "compiled unchanged with the mutated statement",
+            "mutated_type": "True"
+          }
+        ],
+        "budget": 40
+      }
+    },
+    {
+      "name": "minimize",
+      "verdict": "skipped",
+      "summary": "nothing to minimize: the file compiles",
+      "duration_ms": 0,
+      "findings": [],
+      "skip_reason": "no errors"
+    },
+    {
+      "name": "claim",
+      "verdict": "skipped",
+      "summary": "no claim supplied — correspondence to the intended claim is unverified",
+      "duration_ms": 0,
+      "findings": [],
+      "data": {
+        "note": "The formal statement can be vacuous or can differ from the intended claim without this being detectable from the code alone. Supply a claim file to check the quantifier and hypothesis structure against it."
+      },
+      "skip_reason": "no --claim file"
+    }
+  ],
+  "findings": [
+    {
+      "check": "statements",
+      "code": "decorative_hypothesis",
+      "severity": "medium",
+      "category": "statement",
+      "confidence": "heuristic",
+      "title": "`vacuous` has a hypothesis nothing else mentions: `h`",
+      "detail": "`h : n > 5` mentions no identifier that appears in the conclusion or in any other hypothesis. Either the statement assumes something it never uses (which overstates what it claims to need), or the conclusion is weaker than intended. The `dependence` check tests this directly by deleting the hypothesis and re-running the proof.",
+      "declaration": "vacuous",
+      "location": {
+        "file": "/home/user/lean-proof-audit/audit/corpus/vacuous.lean",
+        "start": {
+          "line": 11,
+          "col": 1
+        },
+        "end": {
+          "line": 11,
+          "col": 1
+        }
+      },
+      "remediation": "Remove the hypothesis if it is unused, or strengthen the conclusion.",
+      "evidence": [
+        {
+          "kind": "statement",
+          "summary": "hypothesis variables: ['n']; variables elsewhere: []; intersection: empty"
+        }
+      ]
+    },
+    {
+      "check": "statements",
+      "code": "trivial_conclusion",
+      "severity": "high",
+      "category": "statement",
+      "confidence": "proven",
+      "title": "`vacuous` concludes `True`",
+      "detail": "The conclusion is `True`, so the theorem is true no matter what the hypotheses say. Be aware that its axioms can still be kernel-clean: this is not a soundness failure, it is a statement failure.",
+      "declaration": "vacuous",
+      "location": {
+        "file": "/home/user/lean-proof-audit/audit/corpus/vacuous.lean",
+        "start": {
+          "line": 11,
+          "col": 1
+        },
+        "end": {
+          "line": 11,
+          "col": 1
+        }
+      },
+      "evidence": [
+        {
+          "kind": "statement",
+          "summary": "⊢ True"
+        }
+      ]
+    },
+    {
+      "check": "dependence",
+      "code": "inert_hypothesis",
+      "severity": "medium",
+      "category": "dependence",
+      "confidence": "heuristic_confirmed",
+      "title": "`vacuous` does not use its hypothesis `h`",
+      "detail": "The hypothesis was deleted from the statement, the proof was left untouched, and Lean still accepted the declaration. The proof term therefore does not depend on it. The theorem remains true, but it is weaker than it looks: a reader will assume that hypothesis is doing work. Either drop it, or the conclusion is meant to be stronger.",
+      "declaration": "vacuous",
+      "remediation": "Remove the unused hypothesis, or strengthen the conclusion so the hypothesis is needed.",
+      "evidence": [
+        {
+          "kind": "lean_run",
+          "summary": "drop_hypothesis -> survived: compiled unchanged with the mutated statement",
+          "command": [
+            "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+            "/tmp/lean-audit-vz1_ofh1/Mutant_41195433.lean"
+          ],
+          "exit_code": 0,
+          "exit_status": "ok",
+          "duration_ms": 38,
+          "stdout": "",
+          "stderr": "",
+          "input_sha256": "075fdc61ae4f4fc9cf4405a0cbc7593c00ec9a700a56c8c806e108835c0911ab",
+          "input": "/-\n  Two independent statement-level defects, neither of which the kernel can see:\n\n    * the conclusion is `True`, so the theorem asserts nothing;\n    * the hypothesis `n > 5` is never used by the proof.\n\n  It compiles, it is axiom-clean, and it means nothing.\n-/\nset_option autoImplicit false\n\ntheorem vacuous (n : Nat)  : True := trivial\n"
+        }
+      ]
+    },
+    {
+      "check": "dependence",
+      "code": "goal_agnostic_proof",
+      "severity": "medium",
+      "category": "dependence",
+      "confidence": "heuristic_confirmed",
+      "title": "`vacuous` compiles even when its conclusion is replaced by `True`",
+      "detail": "The proof closes the goal regardless of what the goal is, which is what automation-driven proofs (`simp`, `trivial`, `decide`-style) do. This does not make the theorem false. It does mean that for this declaration the proof carries no information about the conclusion, so the statement is doing all the work and deserves the closest reading.",
+      "declaration": "vacuous",
+      "evidence": [
+        {
+          "kind": "lean_run",
+          "summary": "conclusion_true -> survived: compiled unchanged with the mutated statement",
+          "command": [
+            "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+            "/tmp/lean-audit-vz1_ofh1/Mutant_65141623.lean"
+          ],
+          "exit_code": 0,
+          "exit_status": "ok",
+          "duration_ms": 37,
+          "stdout": "",
+          "stderr": "",
+          "input_sha256": "8fe1cfb207d711eadd01e46233386dfd9c1ca0a4331265abb4f98105cac1bba2",
+          "input": "/-\n  Two independent statement-level defects, neither of which the kernel can see:\n\n    * the conclusion is `True`, so the theorem asserts nothing;\n    * the hypothesis `n > 5` is never used by the proof.\n\n  It compiles, it is axiom-clean, and it means nothing.\n-/\nset_option autoImplicit false\n\ntheorem vacuous (n : Nat) (h : n > 5) : True:= trivial\n"
+        }
+      ]
+    }
+  ],
+  "declarations": [
+    {
+      "declaration": "vacuous",
+      "axioms": [],
+      "fingerprint": "sha256:49da7ece4860f999e6609a87649ef562528704a068167fd2c473b928f3e88879",
+      "telescope": [
+        "(n : Nat)",
+        "(h : n > 5)",
+        "⊢ True"
+      ],
+      "conclusion": "True",
+      "binders": 2,
+      "dependence": {
+        "hypotheses": {
+          "n": {
+            "drop_hypothesis": "killed",
+            "meaning": "the proof depends on this hypothesis"
+          },
+          "h": {
+            "drop_hypothesis": "survived",
+            "meaning": "the proof does not depend on this hypothesis"
+          }
+        },
+        "conclusion_sensitivity": "agnostic",
+        "evidence_strength": "weak"
+      },
+      "findings": 4,
+      "axiom_status": "clean"
+    }
+  ],
+  "notes": [],
+  "stats": {
+    "duration_ms": 307,
+    "lean_runs": 7,
+    "lean_time_ms": 259
+  }
+}

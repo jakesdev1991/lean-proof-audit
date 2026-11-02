@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lean-proof-audit"
+version = "2.0.0"
+description = "Evidence-carrying audits for Lean 4: kernel acceptance, axiom surface, statement honesty, and proof dependence."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["lean", "lean4", "theorem-proving", "verification", "audit", "formal-methods"]
+
+[project.optional-dependencies]
+dev = []
+
+[project.scripts]
+lean-audit = "lean_audit.cli:main"
+
+[tool.setuptools]
+packages = ["lean_audit", "lean_audit.checks"]
+
+[tool.setuptools.package-data]
+lean_audit = ["py.typed"]

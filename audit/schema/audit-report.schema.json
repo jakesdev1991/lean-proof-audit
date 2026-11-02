@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lean-proof-audit/schema/lean-audit-2.json",
+  "title": "Lean Proof Audit report",
+  "type": "object",
+  "required": ["schema", "auditor", "generated_at", "target", "environment", "config", "verdict", "checks", "findings", "declarations"],
+  "properties": {
+    "schema": { "const": "lean-audit/2" },
+    "auditor": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "lean-audit" },
+        "version": { "type": "string" }
+      }
+    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "target": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "lean": { "type": "string" },
+        "version": { "type": "string" },
+        "lake": { "type": ["string", "null"] },
+        "is_lake_project": { "type": "boolean" },
+        "error": { "type": "string" }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "required": ["overall", "reason", "sound", "statements_honest", "counts"],
+      "properties": {
+        "overall": { "enum": ["pass", "warn", "fail", "inconclusive", "skipped"] },
+        "reason": { "type": "string" },
+        "sound": { "type": "boolean", "description": "No soundness-category finding at high or above." },
+        "statements_honest": { "type": "boolean", "description": "No statement-category finding at high or above." },
+        "dependence_checked": { "type": "boolean" },
+        "incomplete_checks": { "type": "array", "items": { "type": "string" } },
+        "counts": {
+          "type": "object",
+          "required": ["critical", "high", "medium", "low", "info"],
+          "properties": {
+            "critical": { "type": "integer", "minimum": 0 },
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 },
+            "info": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "verdict", "summary", "findings"],
+        "properties": {
+          "name": { "type": "string" },
+          "verdict": { "enum": ["pass", "warn", "fail", "inconclusive", "skipped"] },
+          "summary": { "type": "string" },
+          "duration_ms": { "type": "integer" },
+          "skip_reason": { "type": "string" },
+          "findings": { "type": "array" },
+          "data": { "type": "object" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check", "code", "severity", "category", "confidence", "title", "detail", "evidence"],
+        "properties": {
+          "check": { "type": "string" },
+          "code": { "type": "string" },
+          "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+          "category": { "enum": ["soundness", "statement", "dependence", "reproducibility"] },
+          "confidence": { "enum": ["proven", "heuristic", "heuristic_confirmed"] },
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "declaration": { "type": "string" },
+          "remediation": { "type": "string" },
+          "location": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string" },
+              "start": { "type": "object" },
+              "end": { "type": "object" }
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "summary"],
+              "properties": {
+                "kind": { "type": "string" },
+                "summary": { "type": "string" },
+                "command": { "type": "array", "items": { "type": "string" } },
+                "stdout": { "type": "string" },
+                "stderr": { "type": "string" },
+                "exit_code": { "type": ["integer", "null"] },
+                "exit_status": { "type": "string" },
+                "duration_ms": { "type": "integer" },
+                "input_sha256": { "type": "string" },
+                "input": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "declarations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["declaration"],
+        "properties": {
+          "declaration": { "type": "string" },
+          "fingerprint": { "type": "string" },
+          "axioms": { "type": "array", "items": { "type": "string" } },
+          "telescope": { "type": "array", "items": { "type": "string" } },
+          "conclusion": { "type": "string" },
+          "binders": { "type": "integer" },
+          "findings": { "type": "integer" }
+        }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "duration_ms": { "type": "integer" },
+        "lean_runs": { "type": "integer" },
+        "lean_time_ms": { "type": "integer" }
+      }
+    }
+  }
+}
