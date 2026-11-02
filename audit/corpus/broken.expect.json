@@ -1,0 +1,6 @@
+{
+  "verdict": "fail",
+  "must_flag": ["build_error", "failure_type_mismatch"],
+  "must_not_flag": [],
+  "why": "A non-compiling file must be reported as a build failure AND reduced to a minimal fragment with a classified failure kind."
+}

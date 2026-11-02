@@ -1,0 +1,137 @@
+{
+  "contract_version": "lean-audit-vault/1",
+  "generated_at": "2026-11-02T07:10:02.968916+00:00",
+  "project": null,
+  "lean": {
+    "path": "/home/user/lean-proof-audit/audit/tests/fakelean/lean",
+    "version": "Lean (version 4.999.0, fake-toolchain-for-tests, Release)"
+  },
+  "probes": [
+    {
+      "id": "version",
+      "status": "ok",
+      "observed": "Lean (version 4.999.0, fake-toolchain-for-tests, Release)",
+      "detail": "parsed version 4.999.0",
+      "capability": "toolchain",
+      "required": true,
+      "description": "`lean --version` identifies the toolchain"
+    },
+    {
+      "id": "print_axioms_clean",
+      "status": "ok",
+      "observed": "'conformance_clean' does not depend on any axioms",
+      "detail": "matched the 'does not depend on any axioms' form",
+      "capability": "axiom_query",
+      "required": true,
+      "description": "`#print axioms` reports an empty axiom set"
+    },
+    {
+      "id": "print_axioms_list",
+      "status": "ok",
+      "observed": "'conformance_uses_axiom' depends on axioms: [conformance_assumption]",
+      "detail": "found `conformance_assumption` in the reported axiom list",
+      "capability": "axiom_query",
+      "required": true,
+      "description": "`#print axioms` reports a non-empty axiom set"
+    },
+    {
+      "id": "print_axioms_sorry",
+      "status": "ok",
+      "observed": "'conformance_sorry' depends on axioms: [sorryAx]\n/tmp/vault-conformance-szy61yhd/print_axioms_sorry.lean:1:1: warning: declaration uses 'sorry'",
+      "detail": "found `sorryAx` in the reported axiom list",
+      "capability": "axiom_query",
+      "required": true,
+      "description": "`#print axioms` exposes `sorryAx`"
+    },
+    {
+      "id": "sorry_warning",
+      "status": "ok",
+      "observed": "/tmp/vault-conformance-szy61yhd/sorry_warning.lean:1:1: warning: declaration uses 'sorry'",
+      "detail": "Lean emits the standard sorry warning",
+      "capability": "sorry_warning",
+      "required": true,
+      "description": "compiling a `sorry` emits the `declaration uses 'sorry'` warning"
+    },
+    {
+      "id": "diagnostic_format",
+      "status": "ok",
+      "observed": "/tmp/vault-conformance-szy61yhd/diagnostic_format.lean:1:1: error: type mismatch\n  rfl\nhas type\n  ?a = ?a\nbut is expected to have type\n  (1 : Nat) = 2",
+      "detail": "type error at 1:1",
+      "capability": "diagnostics",
+      "required": true,
+      "description": "errors are printed as `file:line:col: error: message`"
+    },
+    {
+      "id": "olean_out",
+      "status": "ok",
+      "observed": "compiled with -o into a scratch directory",
+      "detail": "no artifact left in the client tree",
+      "capability": "olean_out",
+      "required": true,
+      "description": "`-o <path>` keeps build artifacts out of the client's tree"
+    },
+    {
+      "id": "pp_all_inline",
+      "status": "ok",
+      "observed": "@conformance_clean : (n : Nat) \u2192 n = n",
+      "detail": "`#check` printed a fully qualified, @-prefixed type",
+      "capability": "pp_all",
+      "required": true,
+      "description": "`set_option pp.all true in #check @f` prints a fully elaborated type"
+    },
+    {
+      "id": "pp_all_global",
+      "status": "ok",
+      "observed": "@conformance_clean : (n : Nat) \u2192 n = n",
+      "detail": "`#check` printed a fully qualified, @-prefixed type",
+      "capability": "pp_all",
+      "required": false,
+      "description": "a file-wide `set_option pp.all true` also works (fallback)"
+    },
+    {
+      "id": "decide_refutation",
+      "status": "ok",
+      "observed": "`by decide` closed a negated decidable goal",
+      "detail": "",
+      "capability": "decide_refutation",
+      "required": false,
+      "description": "`by decide` can refute a closed hypothesis"
+    },
+    {
+      "id": "lake_env",
+      "status": "skipped",
+      "observed": "",
+      "detail": "no lakefile in the project, or `lake` is not installed",
+      "capability": "lake_env",
+      "required": false,
+      "description": "`lake env lean` runs inside the project"
+    },
+    {
+      "id": "mathlib_import",
+      "status": "ok",
+      "observed": "`import Mathlib` resolved",
+      "detail": "",
+      "capability": "mathlib",
+      "required": false,
+      "description": "`import Mathlib` resolves in this project"
+    }
+  ],
+  "capabilities": {
+    "toolchain": true,
+    "axiom_query": true,
+    "sorry_warning": true,
+    "diagnostics": true,
+    "olean_out": true,
+    "pp_all": true,
+    "decide_refutation": true,
+    "lake_env": false,
+    "mathlib": true
+  },
+  "summary": {
+    "ok": 11,
+    "failed": 0,
+    "skipped": 1,
+    "required_failed": []
+  },
+  "compatible": true
+}

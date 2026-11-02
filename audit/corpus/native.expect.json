@@ -1,0 +1,6 @@
+{
+  "verdict": "fail",
+  "must_flag": ["compiler_trust", "source_native_decide"],
+  "must_not_flag": ["depends_on_sorry", "unverified_axiom"],
+  "why": "`native_decide` moves trust from the kernel to the compiler; it must be distinguished from both a hole and a custom axiom."
+}

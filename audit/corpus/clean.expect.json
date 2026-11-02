@@ -1,0 +1,10 @@
+{
+  "verdict": "pass",
+  "must_flag": [],
+  "must_not_flag": [
+    "build_error", "depends_on_sorry", "unverified_axiom", "compiler_trust",
+    "inert_hypothesis", "trivial_conclusion", "refutable_hypothesis",
+    "decorative_hypothesis", "statement_unparsed", "goal_agnostic_proof"
+  ],
+  "why": "A clean theorem must produce no findings. This is the specificity half of the self-check: an auditor that flags everything is worthless."
+}

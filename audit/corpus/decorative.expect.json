@@ -1,0 +1,6 @@
+{
+  "verdict": "warn",
+  "must_flag": ["inert_hypothesis"],
+  "must_not_flag": ["trivial_conclusion", "depends_on_sorry", "unverified_axiom", "build_error"],
+  "why": "The theorem is true and provable; the defect is that its hypothesis is decorative. That is a warning, not a failure."
+}

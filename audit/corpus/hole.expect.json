@@ -1,0 +1,6 @@
+{
+  "verdict": "fail",
+  "must_flag": ["depends_on_sorry", "placeholder_proof"],
+  "must_not_flag": ["unverified_axiom"],
+  "why": "The file compiles (sorry is only a warning), so the hole is only visible through the axiom set."
+}

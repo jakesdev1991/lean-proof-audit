@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""A *simulated* Lean executable, used only to test the auditor's own logic.
+
+This is NOT Lean and NOT a Lean emulator. It reproduces just enough of the
+observable behaviour of `lean file.lean`, `#print axioms`, and `#check` — with
+deterministic semantics driven by simple rules — so that the audit pipeline
+(probing, parsing, mutation, aggregation, verdicts) can be tested end to end on
+a machine with no toolchain.
+
+Rules implemented:
+  * `--!error: MSG` in the source produces a compile error at that line.
+  * a theorem body containing `sorry` produces Lean's `declaration uses 'sorry'`
+    warning, and its axiom set includes `sorryAx`.
+  * a body referring to a name that is neither a binder, a declaration, an
+    `axiom`, nor a known global is `unknown identifier` — which is exactly what
+    happens when a hypothesis is deleted from a statement by mutation testing.
+  * a body containing `native_decide` depends on `Lean.ofReduceBool`.
+  * a conclusion of `True` whose body is not closed by automation is a type
+    mismatch — exactly what `conclusion_true` mutation must produce.
+
+Never ship this as if it were Lean. `tests/README.md` says so explicitly.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from lean_audit.source import index_source  # noqa: E402
+
+VERSION = "Lean (version 4.999.0, fake-toolchain-for-tests, Release)"
+
+KEYWORDS = {
+    "by", "exact", "apply", "intro", "intros", "simp", "rfl", "trivial", "decide",
+    "native_decide", "omega", "norm_num", "linarith", "rw", "at", "with", "fun",
+    "have", "this", "obtain", "rcases", "cases", "induction", "constructor", "left",
+    "right", "sorry", "show", "from", "then", "else", "if", "let", "is", "the",
+    "also", "first", "try", "all_goals", "repeat", "assumption", "contradiction",
+    "absurd", "exists", "use", "as", "true", "false", "sorryax",
+}
+
+AUTOMATION = ("trivial", "simp", "decide", "norm_num", "omega")
+
+
+def main() -> int:
+    argv = sys.argv[1:]
+    if "--version" in argv:
+        print(VERSION)
+        return 0
+    path = None
+    skip = False
+    for arg in argv:
+        if skip:
+            skip = False
+            continue
+        if arg == "-o":
+            skip = True
+            continue
+        if not arg.startswith("-"):
+            path = arg
+    if path is None:
+        print("error: no input file", file=sys.stderr)
+        return 1
+
+    text = Path(path).read_text(encoding="utf-8")
+    emulator = Simulator(path, text)
+    emulator.run()
+    return emulator.exit_code
+
+
+class Simulator:
+    def __init__(self, path: str, text: str):
+        self.path = path
+        self.text = text
+        self.index = index_source(path, text)
+        self.exit_code = 0
+        self.lines = text.splitlines()
+        self.decls = {}
+        for decl in self.index.decls:
+            if decl.name:
+                self.decls[decl.qualified_name or decl.name] = decl
+                self.decls.setdefault(decl.name, decl)
+        self.axiom_names = {d.name for d in self.index.decls if d.kw == "axiom" and d.name}
+        self.known_axioms = {n.split(".")[-1] for n in self.axiom_names if n}
+        self.bound = set()
+        for decl in self.index.decls:
+            t = (decl.binders_text(text) or "") + " " + (decl.type_text(text) or "")
+            self.bound |= set(re.findall(r"\(\s*([A-Za-z_][\w'!?]*)\s*:", t))
+            self.bound |= set(re.findall(r"\{\s*([A-Za-z_][\w'!?]*)\s*:", t))
+            self.bound |= set(re.findall(r"\[\s*([A-Za-z_][\w'!?]*)\s*:", t))
+            self.bound |= set(re.findall(r"∀\s*([A-Za-z_][\w'!?]*)", t))
+        self.bound |= {d.name for d in self.index.decls if d.name}
+
+    def body_of(self, decl) -> str:
+        start = decl.type_end if decl.type_end is not None else decl.start
+        return self.text[start : decl.end]
+
+    def emit(self, message: str) -> None:
+        print(message, file=sys.stderr)
+
+    def error(self, line: int, message: str) -> None:
+        self.emit(f"{self.path}:{line}:1: error: {message}")
+        self.exit_code = 1
+
+    def warning(self, line: int, message: str) -> None:
+        self.emit(f"{self.path}:{line}:1: warning: {message}")
+
+    def resolve(self, name: str):
+        name = name.lstrip("@").strip()
+        if name in self.decls:
+            return self.decls[name]
+        tail = name.split(".")[-1]
+        for key, decl in self.decls.items():
+            if key.endswith("." + tail) or key == tail:
+                return decl
+        return None
+
+    def run(self) -> None:
+        for i, line in enumerate(self.lines, start=1):
+            if "--!error:" in line:
+                self.error(i, line.split("--!error:", 1)[1].strip())
+            stripped = line.strip()
+            if stripped.startswith("#print axioms"):
+                self.cmd_print_axioms(i, stripped.split(None, 2)[2])
+            elif stripped.startswith("#check"):
+                self.cmd_check(i, stripped.split(None, 1)[1])
+        self.check_declarations()
+
+    def check_declarations(self) -> None:
+        for decl in self.index.decls:
+            if decl.kw not in ("theorem", "lemma", "example"):
+                continue
+            body = self.body_of(decl)
+            line = decl.header_line
+            if re.search(r"\bsorry\b", body):
+                self.warning(line, "declaration uses 'sorry'")
+            conclusion = " ".join((decl.type_text(self.text) or "").split())
+            # `rfl` proves only reflexive equalities; a false numeric equality must fail.
+            numeric = re.match(r"^\(?\s*(\d+)\s*\)?\s*=+\s*\(?\s*(\d+)\s*\)?$", conclusion.replace(" : Nat", ""))
+            if numeric and numeric.group(1) != numeric.group(2) and "rfl" in body:
+                self.error(
+                    line,
+                    "type mismatch\n  rfl\nhas type\n  ?a = ?a\nbut is expected to have type\n  "
+                    + conclusion,
+                )
+                continue
+            if conclusion.endswith("True") and not any(a in body for a in AUTOMATION):
+                self.error(
+                    line,
+                    "type mismatch\n  the proof has type\n    ?m\nbut is expected to have type\n    True",
+                )
+                continue
+            # Statement well-formedness: a name used in the type must be bound.
+            # This is what makes deleting a variable from a telescope fail, as it
+            # does in real Lean.
+            statement = (decl.binders_text(self.text) or "") + " " + (decl.type_text(self.text) or "")
+            unresolved = self._unresolved(statement)
+            if unresolved:
+                self.error(line, f"unknown identifier '{unresolved}'")
+                continue
+            unresolved = self._unresolved(body)
+            if unresolved:
+                self.error(line, f"unknown identifier '{unresolved}'")
+
+    def _unresolved(self, text: str) -> str | None:
+        for ident in re.findall(r"[A-Za-z_][A-Za-z0-9_']*(?:\.[A-Za-z0-9_']+)*", text):
+            head = ident.split(".")[0]
+            if ident in KEYWORDS or head in KEYWORDS:
+                continue
+            if ident in self.bound or head in self.bound:
+                continue
+            if ident in self.known_axioms or head in self.known_axioms:
+                continue
+            if head[:1].isupper():
+                continue  # global constant, constructor, or type
+            if ident in self.decls or head in self.decls:
+                continue
+            if ident in {"n", "m", "k", "h", "g", "x", "y", "z", "a", "b", "c"} and ident not in self.bound:
+                # an unbound single-letter name is exactly the mutation signal
+                return ident
+            if ident.isdigit():
+                continue
+            return ident
+        return None
+
+    def cmd_print_axioms(self, line: int, raw_name: str) -> None:
+        name = raw_name.strip()
+        decl = self.resolve(name)
+        if decl is None:
+            self.emit(f"error: unknown identifier '{name.lstrip('@')}'")
+            self.exit_code = 1
+            return
+        body = self.body_of(decl)
+        axioms = []
+        if re.search(r"\bsorry\b", body):
+            axioms.append("sorryAx")
+        for axiom in sorted(self.known_axioms):
+            if axiom and re.search(rf"\b{re.escape(axiom)}\b", body):
+                axioms.append(axiom)
+        if "native_decide" in body:
+            axioms.append("Lean.ofReduceBool")
+        if "simp" in body and "propext" not in axioms:
+            axioms.append("propext")
+        shown = decl.qualified_name or decl.name
+        if axioms:
+            print(f"'{shown}' depends on axioms: [{', '.join(axioms)}]")
+        else:
+            print(f"'{shown}' does not depend on any axioms")
+
+    def cmd_check(self, line: int, raw_name: str) -> None:
+        name = raw_name.strip()
+        decl = self.resolve(name)
+        if decl is None:
+            self.emit(f"error: unknown identifier '{name.lstrip('@')}'")
+            self.exit_code = 1
+            return
+        # Real `#check @foo` prints the WHOLE type: telescope in arrow form, then
+        # the conclusion. Emitting only the post-colon part would make every
+        # theorem look closed.
+        binders = (decl.binders_text(self.text) or "").strip()
+        conclusion = " ".join((decl.type_text(self.text) or "").split())
+        if binders:
+            print(f"@{decl.qualified_name or decl.name} : {binders} → {conclusion}")
+        else:
+            print(f"@{decl.qualified_name or decl.name} : {conclusion}")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
